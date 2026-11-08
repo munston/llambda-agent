@@ -2,13 +2,15 @@ const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
+const os = require("os");
 const { execFile, spawn } = require("child_process");
 
 const configName = "llambda-agent.config";
-const projectConfig = path.join(
-  "C:\\Users\\guyas\\nvidia.gizmo\\llambda-agent.wires\\projects\\llambda-agent",
-  configName
-);
+const secretKey = "llambda-agent.nvidiaApiKey";
+const defaultBaseUrl = "https://integrate.api.nvidia.com/v1";
+const defaultModel = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+/** @type {vscode.ExtensionContext | undefined} */
+let extensionContext;
 
 /** @type {vscode.WebviewPanel | undefined} */
 let panel;
@@ -86,7 +88,7 @@ function workspaceDir() {
   if (folder) {
     return folder.uri.fsPath;
   }
-  return path.dirname(projectConfig);
+  return os.tmpdir();
 }
 
 function findConfig() {
@@ -97,18 +99,15 @@ function findConfig() {
       return candidate;
     }
   }
-  if (fs.existsSync(projectConfig)) {
-    return projectConfig;
-  }
   return undefined;
 }
 
-function readConfig() {
+function filePairs() {
   const file = findConfig();
   if (!file) {
-    throw new Error("llambda-agent.config was not found");
+    return {};
   }
-  const pairs = Object.fromEntries(
+  return Object.fromEntries(
     fs
       .readFileSync(file, "utf8")
       .split(/\r?\n/)
@@ -119,10 +118,23 @@ function readConfig() {
         return [line.slice(0, index).trim(), line.slice(index + 1).trim()];
       })
   );
-  if (!pairs["base-url"] || !pairs.model || !pairs["api-key"]) {
-    throw new Error("llambda-agent.config needs base-url, model, and api-key");
+}
+
+async function readConfig() {
+  const settings = vscode.workspace.getConfiguration("llambda-agent");
+  const fromFile = filePairs();
+  const stored = extensionContext ? await extensionContext.secrets.get(secretKey) : "";
+  const apiKey = (stored || fromFile["api-key"] || "").trim();
+  if (!apiKey) {
+    throw new Error("Set your own NVIDIA API key with llambda-agent: Set NVIDIA API Key.");
   }
-  return pairs;
+  const base = settings.inspect("baseUrl");
+  const model = settings.inspect("model");
+  return {
+    "base-url": (base && (base.workspaceValue || base.globalValue)) || fromFile["base-url"] || defaultBaseUrl,
+    model: (model && (model.workspaceValue || model.globalValue)) || fromFile.model || defaultModel,
+    "api-key": apiKey,
+  };
 }
 
 function post(message) {
@@ -240,7 +252,7 @@ function injectCompiler(answer) {
 }
 
 async function askNvidia(text) {
-  const cfg = readConfig();
+  const cfg = await readConfig();
   const direct = /^(pwd|ls|dir|cd|Get-Location|Get-ChildItem)\b/i.test(text.trim());
   if (direct) {
     const output = await runCommand(text.trim() === "pwd" ? "Get-Location" : text.trim());
@@ -351,8 +363,8 @@ function claudeKey() {
   return key.trim();
 }
 
-function askNemotron(text) {
-  const cfg = readConfig();
+async function askNemotron(text) {
+  const cfg = await readConfig();
   compilerMessages.push({ role: "user", content: text });
   const body = JSON.stringify({
     model: cfg.model,
@@ -401,11 +413,11 @@ function askNemotron(text) {
   req.end();
 }
 
-function startCompiler() {
+async function startCompiler() {
   const binary = claudeBinary();
   if (!claudeKey()) {
-    let model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
-    try { model = readConfig().model; } catch (err) { post({ type: "compiler", text: err.message + "\n" }); }
+    let model = defaultModel;
+    try { model = (await readConfig()).model; } catch (err) { post({ type: "compiler", text: err.message + "\n" }); }
     post({ type: "compiler", text: "no Claude key, using " + model + "\n" });
     return;
   }
@@ -423,7 +435,7 @@ function writeCompiler(text) {
     return;
   }
   if (!claudeKey()) {
-    askNemotron(line);
+    askNemotron(line).catch((err) => post({ type: "compiler", text: err.message + "\n" }));
     return;
   }
   const args = ["--model", "qwen2.5-coder:1.5b"];
@@ -494,7 +506,7 @@ function claudePrint(prompt, continued) {
 }
 
 async function nemotronCompile(task) {
-  const cfg = readConfig();
+  const cfg = await readConfig();
   const thread = [
     {
       role: "system",
@@ -542,7 +554,7 @@ async function compilerFromUpper(task) {
   return finalReply || assistant;
 }
 
-function openCli() {
+async function openCli() {
   if (!panel) {
     messages = [
       {
@@ -584,7 +596,7 @@ function openCli() {
     panel.reveal(vscode.ViewColumn.Beside);
   }
   try {
-    const cfg = readConfig();
+    const cfg = await readConfig();
     post({ type: "out", text: "NVIDIA " + cfg.model + "\nworkspace " + workspaceDir() + "\n" });
   } catch (err) {
     post({ type: "out", text: err.message + "\n" });
@@ -692,10 +704,26 @@ function page() {
 </html>`;
 }
 
+async function setApiKey() {
+  const value = await vscode.window.showInputBox({
+    title: "NVIDIA API key",
+    prompt: "This key stays in VS Code secret storage for your user. It is not written into the extension.",
+    password: true,
+    ignoreFocusOut: true,
+  });
+  if (!value || !value.trim()) {
+    return;
+  }
+  await extensionContext.secrets.store(secretKey, value.trim());
+  vscode.window.showInformationMessage("NVIDIA API key saved for this user.");
+}
+
 function activate(context) {
+  extensionContext = context;
   context.subscriptions.push(
     vscode.commands.registerCommand("llambda-agent.openCli", openCli),
-    vscode.commands.registerCommand("llambda-agent.nvidia", openCli)
+    vscode.commands.registerCommand("llambda-agent.nvidia", openCli),
+    vscode.commands.registerCommand("llambda-agent.setApiKey", setApiKey)
   );
 }
 

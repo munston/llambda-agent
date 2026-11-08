@@ -2,7 +2,7 @@
   "name": "llambda-agent",
   "displayName": "llambda-agent",
   "description": "Installable VS Code extension that talks to the NVIDIA model.",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "publisher": "llambda",
   "license": "MIT",
   "engines": {
@@ -20,8 +20,27 @@
       {
         "command": "llambda-agent.nvidia",
         "title": "llambda-agent: NVIDIA"
+      },
+      {
+        "command": "llambda-agent.setApiKey",
+        "title": "llambda-agent: Set NVIDIA API Key"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "llambda-agent",
+      "properties": {
+        "llambda-agent.baseUrl": {
+          "type": "string",
+          "default": "https://integrate.api.nvidia.com/v1",
+          "description": "NVIDIA chat API base URL. The API key is not a setting; each user sets their own with llambda-agent: Set NVIDIA API Key."
+        },
+        "llambda-agent.model": {
+          "type": "string",
+          "default": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+          "description": "NVIDIA model name."
+        }
+      }
+    }
   }
 }
 
