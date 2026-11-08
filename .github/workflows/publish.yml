@@ -1,0 +1,30 @@
+# Marketplace Trusted Publishing policy must match this file exactly:
+#   Workflow: publish.yml
+#   Repository owner / Repository: the GitHub repo that contains this file
+#   Environment: leave empty (this job does not set one)
+# Create the policy at https://marketplace.visualstudio.com/manage
+# under publisher "llambda" -> Trusted Publishing -> Create.
+name: Publish VS Code extension
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "vscode-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish with OIDC
+        run: npx --yes @vscode/vsce publish --oidc

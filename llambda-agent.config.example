@@ -1,0 +1,4 @@
+provider=nvidia
+base-url=https://integrate.api.nvidia.com/v1
+model=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+api-key=YOUR_NVIDIA_API_KEY

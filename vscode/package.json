@@ -1,0 +1,28 @@
+{
+  "name": "llambda-agent",
+  "displayName": "llambda-agent",
+  "description": "Installable VS Code extension that talks to the NVIDIA model.",
+  "version": "0.1.21",
+  "publisher": "llambda",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "llambda-agent.openCli",
+        "title": "llambda-agent: Open Command Line"
+      },
+      {
+        "command": "llambda-agent.nvidia",
+        "title": "llambda-agent: NVIDIA"
+      }
+    ]
+  }
+}
+
+

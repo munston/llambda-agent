@@ -1,0 +1,4 @@
+dist-newstyle/
+llambda-agent.config
+agent-history.json
+vscode/*.vsix

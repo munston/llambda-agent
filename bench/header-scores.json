@@ -1,0 +1,10 @@
+{
+  "header": "built-in",
+  "source": "built-in",
+  "score": 100,
+  "passed": true,
+  "pwd": true,
+  "ls": true,
+  "hello": true,
+  "at": "2026-11-08T07:21:32"
+}
