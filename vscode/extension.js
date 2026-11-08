@@ -124,9 +124,24 @@ async function readConfig() {
   const settings = vscode.workspace.getConfiguration("llambda-agent");
   const fromFile = filePairs();
   const stored = extensionContext ? await extensionContext.secrets.get(secretKey) : "";
-  const apiKey = (stored || fromFile["api-key"] || "").trim();
+  let apiKey = (stored || fromFile["api-key"] || "").trim();
   if (!apiKey) {
-    throw new Error("Set your own NVIDIA API key with llambda-agent: Set NVIDIA API Key.");
+    const set = "Set NVIDIA API Key";
+    const choice = await vscode.window.showErrorMessage(
+      "llambda-agent has no NVIDIA API key on this machine. Click \"" +
+        set +
+        "\" below, or press Ctrl+Shift+P (Cmd+Shift+P on Mac) and run \"llambda-agent: Set NVIDIA API Key\". Paste the key from https://build.nvidia.com. VS Code stores it in secret storage for this user.",
+      set
+    );
+    if (choice === set) {
+      await setApiKey();
+      apiKey = ((await extensionContext.secrets.get(secretKey)) || "").trim();
+    }
+  }
+  if (!apiKey) {
+    throw new Error(
+      "No NVIDIA API key yet. Press Ctrl+Shift+P, run \"llambda-agent: Set NVIDIA API Key\", and paste your key from https://build.nvidia.com."
+    );
   }
   const base = settings.inspect("baseUrl");
   const model = settings.inspect("model");
@@ -707,7 +722,8 @@ function page() {
 async function setApiKey() {
   const value = await vscode.window.showInputBox({
     title: "NVIDIA API key",
-    prompt: "This key stays in VS Code secret storage for your user. It is not written into the extension.",
+    prompt: "Paste the key from https://build.nvidia.com. It is saved in VS Code secret storage for this user only.",
+    placeHolder: "nvapi-...",
     password: true,
     ignoreFocusOut: true,
   });

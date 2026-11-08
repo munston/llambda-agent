@@ -2,7 +2,7 @@
   "name": "llambda-agent",
   "displayName": "llambda-agent",
   "description": "Installable VS Code extension that talks to the NVIDIA model.",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "publisher": "llambda",
   "license": "MIT",
   "engines": {
